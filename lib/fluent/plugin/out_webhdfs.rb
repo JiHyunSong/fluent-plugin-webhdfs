@@ -66,6 +66,9 @@ class Fluent::WebHDFSOutput < Fluent::TimeSlicedOutput
   desc 'Append data or not'
   config_param :append, :bool, :default => true
 
+  desc 'Octal permission option'
+  config_param :permission, :integer, :default => nil
+
   desc 'Use SSL or not'
   config_param :ssl, :bool, :default => false
   desc 'OpenSSL certificate authority file'
@@ -158,6 +161,11 @@ class Fluent::WebHDFSOutput < Fluent::TimeSlicedOutput
     end
     unless @path.index('/') == 0
       raise Fluent::ConfigError, "Path on hdfs MUST starts with '/', but '#{@path}'"
+    end
+
+    @option = {}
+    if @permission
+      @option = @option.merge({'permission' => @permission})
     end
 
     @client = prepare_client(@namenode_host, @namenode_port, @username)
@@ -258,12 +266,12 @@ class Fluent::WebHDFSOutput < Fluent::TimeSlicedOutput
   def send_data(path, data)
     if @append
       begin
-        @client.append(path, data)
+        @client.append(path, data, @option)
       rescue WebHDFS::FileNotFoundError
-        @client.create(path, data)
+        @client.create(path, data, @option)
       end
     else
-      @client.create(path, data, {'overwrite' => 'true'})
+      @client.create(path, data, @option.merge({'overwrite' => 'true'}))
     end
   end
 
